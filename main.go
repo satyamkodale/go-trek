@@ -14,6 +14,23 @@ import (
 	"github.com/thedevsaddam/renderer"
 
 	mgo "gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
+)
+
+type (
+	todoEntity struct {
+		ID bson.ObjectId `bson:"_id,omitempty"`
+		// the content inside (``) show how fields are  going to stored in the db
+		Title     string    `bson:"title"`
+		Completed bool      `bson:"completed"`
+		CreatedAt time.Time `bson:"createdAt"`
+	}
+	todoDTO struct {
+		ID        string    `json:"id"`
+		Title     string    `json:"title"`
+		Completed bool      `json:"completed"`
+		CreatedAt time.Time `json:"created_at"`
+	}
 )
 
 var rnd *renderer.Render
@@ -46,6 +63,19 @@ func homeHandler(res http.ResponseWriter, req *http.Request) {
 	checkErr(err)
 }
 
+func getAllTodo(res http.ResponseWriter, req *http.Request) {
+
+}
+
+// we don't use parentheses (e.g., getAllTodo()) when passing these functions as arguments is because we're passing the function references, not calling them immediately.
+func todoHandlers() http.Handler {
+	router := chi.NewRouter()
+	router.Get("/", getAllTodo)
+	router.Delete("/{id}", deleteTodo)
+	router.Post("/", createTodo)
+	router.Put("/{id}", updateTodo)
+}
+
 func main() {
 	//creating channel
 	channel := make(chan os.Signal)
@@ -57,6 +87,7 @@ func main() {
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
 	router.Get("/", homeHandler)
+	router.Mount("/todo", todoHandlers())
 
 	//creating the server
 	server := &http.Server{
