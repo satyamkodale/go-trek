@@ -160,6 +160,46 @@ func createTodo(res http.ResponseWriter, req *http.Request) {
 }
 
 func updateTodo(res http.ResponseWriter, req *http.Request) {
+	id := strings.TrimSpace(chi.URLParam(req, "id"))
+	// if id not found
+	if !bson.IsObjectIdHex(id) {
+		rnd.JSON(res, http.StatusBadRequest, renderer.M{
+			"Message": "Id not found",
+		})
+		return
+	}
+
+	// extract the dto from req
+	var todoDTO todoDTO
+	if err := json.NewDecoder(req.Body).Decode(&todoDTO); err != nil {
+		rnd.JSON(res, http.StatusProcessing, err)
+		return
+	}
+
+	// validation
+	if todoDTO.Title == "" {
+		rnd.JSON(res, http.StatusBadRequest, renderer.M{
+			"message": "The title field is requried",
+		})
+		return
+	}
+
+	//update todo
+	if err := db.C(collectionName).
+		Update(
+			bson.M{"_id": bson.ObjectIdHex(id)},
+			bson.M{"title": todoDTO.Title, "completed": todoDTO.Completed},
+		); err != nil {
+		rnd.JSON(res, http.StatusProcessing, renderer.M{
+			"message": "Failed to update todo",
+			"error":   err,
+		})
+		return
+	}
+
+	rnd.JSON(res, http.StatusOK, renderer.M{
+		"message": "Todo updated successfully",
+	})
 
 }
 
@@ -170,6 +210,8 @@ func todoHandlers() http.Handler {
 	router.Delete("/{id}", deleteTodo)
 	router.Post("/", createTodo)
 	router.Put("/{id}", updateTodo)
+
+	return router
 }
 
 func main() {
