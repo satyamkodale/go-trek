@@ -64,6 +64,49 @@ func homeHandler(res http.ResponseWriter, req *http.Request) {
 }
 
 func getAllTodo(res http.ResponseWriter, req *http.Request) {
+	todoEntities := []todoEntity{}
+
+	//get the enitited from db
+	if err := db.C(collectionName).Find(bson.M{}).All(&todoEntities); err != nil {
+		rnd.JSON(res, http.StatusInternalServerError, renderer.M{
+			"message": "Failed to fetch todo",
+			"error":   err,
+		})
+		return
+	}
+
+	//convert into JSON DTO's
+	todoList := []todoDTO{}
+
+	// ID        string    `json:"id"`
+	// 	Title     string    `json:"title"`
+	// 	Completed bool      `json:"completed"`
+	// 	CreatedAt time.Time `json:"created_at"`
+
+	for _, todo := range todoEntities {
+		todoList = append(todoList, todoDTO{
+			ID:        todo.ID.Hex(), // Convert BSON ObjectId to string
+			Title:     todo.Title,
+			Completed: todo.Completed,
+			CreatedAt: todo.CreatedAt,
+		})
+	}
+
+	rnd.JSON(res, http.StatusOK, renderer.M{
+		"data": todoList,
+	})
+
+}
+
+func deleteTodo(res http.ResponseWriter, req *http.Request) {
+
+}
+
+func createTodo(res http.ResponseWriter, req *http.Request) {
+
+}
+
+func updateTodo(res http.ResponseWriter, req *http.Request) {
 
 }
 
