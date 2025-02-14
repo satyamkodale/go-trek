@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -101,26 +102,60 @@ func getAllTodo(res http.ResponseWriter, req *http.Request) {
 
 func deleteTodo(res http.ResponseWriter, req *http.Request) {
 	id := strings.TrimSpace(chi.URLParam(req, "id"))
-	// if id not found 
-	if !bson.IsObjectIdHex(id){
-				rnd.JSON(res,http.StatusBadRequest ,renderer.M{ "Message" : "Id not found" })
-				return
+	// if id not found
+	if !bson.IsObjectIdHex(id) {
+		rnd.JSON(res, http.StatusBadRequest, renderer.M{"Message": "Id not found"})
+		return
 	}
-	if err:=db.C(collectionName).RemoveId(bson.ObjectIdHex(id)); err!=nil{
-				rnd.JSON(w,http.StatusProcessing, renderer.M
-					{
-						"message": "Failed to delete todo",
-			      "error":   err,
-					})
-					return
+	if err := db.C(collectionName).RemoveId(bson.ObjectIdHex(id)); err != nil {
+		rnd.JSON(res, http.StatusProcessing, renderer.M{
+			"message": "Failed to delete todo",
+			"error":   err,
+		})
+		return
 	}
-	rnd.JSON(w, http.StatusOK, renderer.M{
-				"message": "Todo deleted successfully",
+	rnd.JSON(res, http.StatusOK, renderer.M{
+		"message": "Todo deleted successfully",
 	})
-	
+
 }
 
 func createTodo(res http.ResponseWriter, req *http.Request) {
+	var todo todoDTO
+
+	if err := json.NewDecoder(req.Body).Decode(&todo); err != nil {
+		rnd.JSON(res, http.StatusProcessing, err)
+		return
+	}
+
+	//validation
+	// simple validation
+	if todo.Title == "" {
+		rnd.JSON(res, http.StatusBadRequest, renderer.M{
+			"message": "The title field is requried",
+		})
+		return
+	}
+
+	todoEntity := todoEntity{
+		ID:        bson.NewObjectId(),
+		Title:     todo.Title,
+		Completed: false,
+		CreatedAt: time.Now(),
+	}
+
+	if err := db.C(collectionName).Insert(&todoEntity); err != nil {
+		rnd.JSON(res, http.StatusInternalServerError, renderer.M{
+			"message": "Failed to save todo",
+			"error":   err,
+		})
+		return
+	}
+
+	rnd.JSON(res, http.StatusCreated, renderer.M{
+		"message": "Todo created successfully",
+		"todo_id": todoEntity.ID.Hex(),
+	})
 
 }
 
