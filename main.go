@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -46,8 +48,8 @@ func homeHandler(res http.ResponseWriter, req *http.Request) {
 
 func main() {
 	//creating channel
-	server := make(chan os.Signal)
-	signal.Notify(server, os.Interrupt)
+	channel := make(chan os.Signal)
+	signal.Notify(channel, os.Interrupt)
 	fmt.Println("Setup done")
 
 	//creating router
@@ -56,8 +58,27 @@ func main() {
 	router.Use(middleware.Logger)
 	router.Get("/", homeHandler)
 
+	//creating the server
+	server := &http.Server{
+		Addr:         port,
+		Handler:      router,
+		ReadTimeout:  60 * time.Second,
+		WriteTimeout: 60 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+	go func() {
+		fmt.Println("Listening port", port)
+		if err := server.ListenAndServe(); err != nil {
+			log.Printf("listen: %s\n", err)
+		}
+	}()
+
 	//stop the server gresfully
-	<-server
+	<-channel
 	log.Println("Shutting down server...")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	server.Shutdown(ctx)
+	defer cancel()
+	log.Println("Server gracefully stopped!")
 
 }
